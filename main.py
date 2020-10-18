@@ -350,6 +350,6 @@ async def on_message(message):
 print("|Conecting...")
 
 if mode == 1:
-    bot.run("NzYyMTUxNjE4MjQxNDk1MDkw.X3k_AQ.C638_fmB207Q7gLet8Xks9yUALw")
+    bot.run("")
 else:
-    bot.run("NzY1NTI4NTcxMTY2NzIwMDAx.X4WICg.go116LlpmTnV4Ag2ryGpBLpK_ig")
+    bot.run("")
