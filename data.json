@@ -9,6 +9,8 @@
             "https://discord.com/api/oauth2/authorize?client_id=762151618241495090&permissions=8&scope=bot"
         ],
     },
+    "gc": {
+    },
     "gban": {
         "715456763503050832": "test\n[\u8a3c\u62e0\u753b\u50cf](https://cdn.discordapp.com/attachments/760795846869909514/765546533406900294/3d8b7424a6297c28.png)\n"
     }
