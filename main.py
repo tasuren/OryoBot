@@ -78,6 +78,8 @@ async def on_command_error(ctx,error):
         await ctx.send(embed=error("none","Unknown","そのコマンドはありません。"))
     elif isinstance(error, discord.ext.commands.errors.MissingRequiredArgument):
         await ctx.send(embed=error("none","Unknown","引数がたりません。"))
+    elif isinstance(error, discord.ext.commands.errors.MissingPermissions):
+        await ctx.send(error("none","権限エラー","あなたにこのコマンドを実行する権限がありません。"))
     else:
         await ctx.send(embed=error("error","内部エラー","すみませんが、OryoBot内でエラーが発生しました。\nもしこのエラーが治らない場合は[サポートサーバー](https://discord.gg/ZffyWb8)で報告してください。"))
   except:
@@ -272,6 +274,95 @@ async def on_member_join(member):
             await channel.send(embed=embed)
 
 
+# グローバルチャット
+@bot.group()
+async def gc(ctx):
+    if not ctx.author.id in team_id:
+        await ctx.send(embed=error("none","エラー","使い方が違います。"))
+
+@gc.command()
+@commands.has_permissions(administrator=True)
+async def make(ctx,*,name):
+    await ctx.channel.trigger_typing()
+    wbs = await ctx.channel.webhooks()
+    if wbs:
+        if any(wb.name in data["gc"] for wb in wbs):
+            return await ctx.send(embed=error("error","作成エラー","既にこのチャンネルでグローバルチャットが接続されています。\n別のチャンネルを使用してください。"))
+    if name in data["gc"]:
+        return await ctx.send(embed=error("error","作成エラー","既にその名前のグローバルチャットがあります。\n別の名前を使用してください。"))
+    await ctx.channel.create_webhook(name=name,reason=f"グローバルチャット用")
+    data["gc"][name] = {
+        "author": ctx.author.id,
+        "channel": {
+            str(ctx.channel.id): "wb"
+        }
+    }
+    await rtutil.jwrite("data.json",data)
+    await ctx.send("グローバルチャットを作成しました。")
+
+@gc.command()
+@commands.has_permissions(administrator=True)
+async def connect(ctx,*,name):
+    await ctx.channel.trigger_typing()
+    wbs = await ctx.channel.webhooks()
+    if wbs:
+        if any(wb.name in data["gc"] for wb in wbs):
+            return await ctx.send(embed=error("error","作成エラー","既にこのチャンネルでグローバルチャットが接続されています。\n別のチャンネルを使用してください。"))
+    if not name in data["gc"]:
+        return await ctx.send(embed=error("none","Unknown","その名前のグローバルチャットが見つかりませんでした。"))
+    data["gc"][name]["channel"][str(ctx.channel.id)] = "wb"
+    await ctx.channel.create_webhook(name=name,reason=f"グローバルチャット用")
+    await rtutil.jwrite("data.json",data)
+    embed = discord.Embed(
+        title=f"*{ctx.guild.name}* が参加しました！",
+        description="接続チャンネル数："+str(len(data["gc"][name]["channel"])),
+        color=color[0]
+    ).set_footer(text=f"{bot.user.name} グローバルチャットシステム").set_thumbnail(url=ctx.guild.icon_url)
+    for c in list(data["gc"][name]["channel"].keys()):
+        channel = bot.get_channel(int(c))
+        if not channel:
+            continue
+        await channel.send(embed=embed)
+
+@gc.command(name="mode")
+@commands.has_permissions(administrator=True)
+async def mode_(ctx,mode):
+    await ctx.channel.trigger_typing()
+    wbs = await ctx.channel.webhooks()
+    if wbs:
+        if not any(wb.name in data["gc"] for wb in wbs):
+            return await ctx.send(embed=error("error","設定エラー","グローバルチャットに接続しているチャンネルで実行してください。"))
+    if not mode in ["e","wb"]:
+        return await ctx.send(embed=error("none","Unknown","モードが見つかりませんでした。"))
+    data["gc"][wbs[0].name]["channel"][str(ctx.channel.id)] = mode
+    await rtutil.jwrite("data.json",data)
+    await ctx.send("設定完了")
+
+async def gcmes(message):
+    if message.author.bot:
+        return
+    wbs = await message.channel.webhooks()
+    if wbs:
+        if any(wb.name in data["gc"] for wb in wbs):
+            wb = wbs[0]
+            embed = discord.Embed(
+                title=f"{message.author}({message.author.id})",
+                description=message.clean_content
+            ).set_footer(text=f"{message.guild.name} | {message.guild.id}",icon_url=message.guild.icon_url).set_thumbnail(url=message.author.avatar_url)
+            for c in list(data["gc"][wb.name]["channel"].keys()):
+                channel = bot.get_channel(int(c))
+                if not channel or int(c) == message.channel.id:
+                    continue
+                if data["gc"][wb.name]["channel"][c] == "wb":
+                    wbs = await channel.webhooks()
+                    if wbs:
+                        async with aiohttp.ClientSession() as session:
+                            webhook = Webhook.from_url(wbs[0].url, adapter=AsyncWebhookAdapter(session))
+                            await webhook.send(message.clean_content, username=f'{message.author} ({message.author.id})')
+                else:
+                    await channel.send(embed=embed)
+
+
 # デバッグ用
 @bot.group()
 async def debug(ctx):
@@ -318,33 +409,8 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    return
-
-    ### グローバルチャット ###
-    # 1.tsuna-globalというのがチャンネルにあるか 2.あったらすべてのサーバーでtsuna-globalのチャンネルを探す
-    # 3.ウェブフックがない場合作り送信する
-    # tg - サーバー    tc - サーバーのチャンネル
-    if "tsuna-global" in message.channel.name:
-        print(f"-Global Chat\n|<Author>{message.author}\n|<Guild> {message.guild.name}")
-        for tg in bot.guilds:
-            for tc in tg.text_channels:
-                if "tsuna-global" in tc.name and tc.id != message.channel.id:
-                    # 画像あったら画像送信
-                    pic = ""
-                    if message.attachments != []:
-                        for at in message.attachments:
-                            pic = pic + at.url + "\n"
-                    # ウェブフックを探す
-                    ch_webhooks = await tc.webhooks()
-                    webhook = discord.utils.get(ch_webhooks, name="tuna-global-webhook")
-                    # ウェブフックがなかったら作る
-                    if webhook is None:
-                        webhook = await tc.create_webhook(name="tuna-global-webhook")
-                    # ウェブフックを送信
-                    await webhook.send(
-                        content=f"{message.content}\n{pic}",
-                        username=f"{message.author} ({message.author.id}) From:{message.guild.name}",
-                        avatar_url=message.author.avatar_url_as(format="png"))
+    # グローバルチャット
+    await gcmes(message)
 
 
 print("|Conecting...")
