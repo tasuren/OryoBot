@@ -2,14 +2,13 @@
 # Oryo Bot
 # Code by tasuren
 
-from discord.ext import commands
-from discord.ext import tasks
-
+from discord.ext import commands, tasks
+from discord import Webhook, AsyncWebhookAdapter
 import discord
-
 
 from datetime import timedelta
 
+import aiohttp
 import psutil
 import rtutil
 import json
@@ -69,7 +68,7 @@ def error(smode,title,desc,footer=None,ccolor=color[1]):
         embed.set_footer(text=footer)
     return embed
 
-
+"""
 # エラー時
 @bot.event
 async def on_command_error(ctx,error):
@@ -81,11 +80,11 @@ async def on_command_error(ctx,error):
     elif isinstance(error, discord.ext.commands.errors.MissingPermissions):
         await ctx.send(error("none","権限エラー","あなたにこのコマンドを実行する権限がありません。"))
     else:
-        await ctx.send(embed=error("error","内部エラー","すみませんが、OryoBot内でエラーが発生しました。\nもしこのエラーが治らない場合は[サポートサーバー](https://discord.gg/ZffyWb8)で報告してください。"))
+        await ctx.send(embed=error("error","内部エラー","すみませんが、Phantom Fly内でエラーが発生しました。\nもしこのエラーが治らない場合は[サポートサーバー](https://discord.gg/ZffyWb8)で報告してください。"))
   except:
     print(f"エラーが発生：{error}")
-    await ctx.send(embed=error("error","エラー","すみませんが、OryoBot内でエラーが発生しました。\nコマンド、引数をしっかりと入力しているかご確認ください。\nもしこのエラーが治らない場合は[サポートサーバー](https://discord.gg/ZffyWb8)で報告してください。"))
-
+    await ctx.send(embed=error("error","エラー","すみませんが、Phantom Fly内でエラーが発生しました。\nコマンド、引数をしっかりと入力しているかご確認ください。\nもしこのエラーが治らない場合は[サポートサーバー](https://discord.gg/ZffyWb8)で報告してください。"))
+"""
 
 # 起動時
 @bot.event
@@ -367,11 +366,11 @@ async def gcmes(message):
 @bot.group()
 async def debug(ctx):
     if not ctx.author.id in team_id:
-        await ctx.send(embed=error("none","権限エラー","このコマンドはOryoBotの開発者のみ有効です。"))
+        await ctx.send(embed=error("none","権限エラー","このコマンドはPhantom Flyの開発者のみ有効です。"))
         return
     if ctx.invoked_subcommand is None:
         embed = discord.Embed(
-            title="OryoBot",
+            title="Phantom Fly",
             description="Running on Glitch (Linux)",
             color=color[0]
         )
@@ -391,7 +390,7 @@ async def debug(ctx):
 @debug.command()
 async def reboot(ctx):
     if not ctx.author.id in team_id:
-        await ctx.send(embed=error("none","権限エラー","このコマンドはOryoBotの開発者のみ有効です。"))
+        await ctx.send(embed=error("none","権限エラー","このコマンドはPhantom Flyの開発者のみ有効です。"))
         return
     activity = discord.Activity(
         name="再起動中。。。", type=discord.ActivityType.watching)
